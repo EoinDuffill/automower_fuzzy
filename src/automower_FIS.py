@@ -1,6 +1,15 @@
 #!/usr/bin/env python
 import rospy
 import numpy as np
+from am_driver.msg import Loop
+
+
+class BoundarySensor(object):
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.accum = 0
+        self.value = 0
 
 
 class Input(object):
@@ -47,7 +56,6 @@ class MembershipFunction(object):
 
     def execMF(self, x):
         #debug
-        print(self.func(self.params, x))
         return self.func(self.params, x)
 
 
@@ -83,11 +91,11 @@ def trapmf(params, x):
 
 
 def line_up(a, b, x):
-    return (x/(b - a)) - (a/(b - a))
+    return ((x*1.0)/(b - a)) - ((a*1.0)/(b - a))
 
 
 def line_down(a, b, x):
-    return (-x/(b - a)) + 1 + (a/(b - a))
+    return (((-x) * 1.0)/(b - a)) + 1 + ((a * 1.0)/(b - a))
 
 
 def min(x,y):
@@ -113,15 +121,28 @@ class FIS(object):
     def __init__(self):
         self.update_rate = 1
 
+        # FC, FR, RL, RR, init w/ x,y co-ords on the automower
+        self.front_center = BoundarySensor(0.3, 0)
+        self.front_right = BoundarySensor(0.3, -0.07)
+        self.rear_left = BoundarySensor(-0.15, 0.12)
+        self.rear_right = BoundarySensor(-0.15, -0.12)
+        self.observation_count = 0
+        self.interval_time = 0
+
+        # Control parameters
+        self.close_sensor_value = 10000
+        self.target_sensor_value = 7500
+        self.far_sensor_value = 5000
+
         self.name = "Steering"
         # self.implication_method = min
         self.defuzz_method = centroid
 
         # Input 1
         self.distanceMFs = np.array([
-            MembershipFunction("Close", trimf, [2, 3, 4]),
-            MembershipFunction("Medium", trimf, [3, 4, 5]),
-            MembershipFunction("Far", trimf, [4, 5, 6])
+            MembershipFunction("Close", trapmf, [self.target_sensor_value, self.close_sensor_value, 15000, 15000]),
+            MembershipFunction("Medium", trimf, [self.far_sensor_value, self.target_sensor_value, self.close_sensor_value]),
+            MembershipFunction("Far", trapmf, [0, 0, self.far_sensor_value, self.target_sensor_value])
         ])
 
         # Output 1
@@ -133,7 +154,7 @@ class FIS(object):
 
         # Array of Inputs
         self.inputs = np.array([
-            Input("Distance", self.distanceMFs, (0, 5))
+            Input("Distance", self.distanceMFs, (0, 15000))
         ])
 
         # Array of Outputs
@@ -148,14 +169,70 @@ class FIS(object):
             Rule(self.distanceMFs[2], None, self.steeringMFs[0], min)
         ])
 
-    def evalFIS(self):
+        # print init vars
+        print "------------"
+        print "FIS: " + str(self.name) + ", Type 1 Mamdani" + ", Defuzz: " + str(self.defuzz_method.__name__)
+        print "------------"
+        # Inputs
+        self.print_var("Inputs" ,self.inputs)
+        print
+        # Outputs
+        self.print_var("Outputs", self.outputs)
+        print "------------"
+
+    def print_var(self, title, var):
+        for i in range(len(var)):
+            print title+" "+str(i+1)+": Name = "+str(var[i].name)+", Domain = "+str(var[i].domain)
+            for j in range(len(var[i].MFs)):
+                print "MF "+str(j+1)+ ": "+str(var[i].MFs[j].name) + \
+                      "\t Func: "+str(var[i].MFs[j].func.__name__) + \
+                      "\t Params: " + str(var[i].MFs[j].params)
+
+    def evalFIS(self, x):
+        print "X = " + str(x)
         # Fire each rule
         for i in range(len(self.rules)):
-            self.rules[i].rule_fire(3.14)
+            self.rules[i].rule_fire(x)
+            print "Rule "+ str(i+1) + ": Ante 1: " +str(self.rules[i].ante1.name) + \
+                  "\t Ante 2: " + str(self.rules[i].ante2) +\
+                  "\t Firing Str: " + str(self.rules[i].firing_strength)
+        print
+
+    # Accumulate loop sensor observations
+    def parse_loop(self, data):
+
+        self.observation_count += 1
+        self.front_center.accum += data.frontCenter
+        self.front_right.accum += data.frontRight
+        self.rear_left.accum += data.rearLeft
+        self.rear_right.accum += data.rearRight
+
+    # Calculate avg since last avg calc
+    def avg_loop(self):
+        # AVG sensor values since last update
+        # return -1 is no observations have been made (no sensor update)
+        # return +ve if observations > 0
+
+        if self.observation_count == 0:
+            return -1
+        else:
+            self.front_center.value = self.front_center.accum / self.observation_count
+            self.front_right.value = self.front_right.accum / self.observation_count
+            self.rear_left.value = self.rear_left.accum / self.observation_count
+            self.rear_right.value = self.rear_right.accum / self.observation_count
+
+            self.front_center.accum = 0
+            self.front_right.accum = 0
+            self.rear_left.accum = 0
+            self.rear_right.accum = 0
+
+            self.observation_count = 0
+            return 1
 
     def update(self):
-        # get distance
-        self.evalFIS()
+        # Get sensor value avg's since last update
+        if self.avg_loop() >= 0:
+            self.evalFIS(self.front_center.value)
         return
 
     def fini(self):
@@ -164,7 +241,7 @@ class FIS(object):
     def run(self):
         try:
             # Setup subscribers
-            # rospy.Subscriber("loop", Loop, self.parse_boundary_sensors, queue_size=None)
+            rospy.Subscriber("loop", Loop, self.parse_loop, queue_size=None)
             r = rospy.Rate(self.update_rate)
             while not rospy.is_shutdown():
                 self.update()
