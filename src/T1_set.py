@@ -4,31 +4,30 @@ import numpy as np
 class T1_sets(object):
     
     
-    def __init__(self,mean,step):
-        
-        
-        self._mean=mean
-        self._step=step
-        self._interval= (mean-(4.0*step) ,mean+(4.0*step) ) 
-        self.list_of_x=np.linspace(self._interval[0],self._interval[1], 100)
-   
+    def __init__(self,mean,step,interval):
+
+        self._mean = mean
+        self._step = step
+        self._interval = interval
+        self.list_of_x = np.linspace(self._interval[0],self._interval[1], 100)
+
     @property
     def mean(self):
         return self._mean
 
-
     @property
     def interval(self):
         return self._interval    
-    
-    
+
     @property
     def step(self):
         return self._step
-    
-    
+
+
 class T1_Triangular(T1_sets):
-    
+
+    def __init__(self, a, b, c):
+        T1_sets.__init__(self, b, (c - a)/4.0, (a, c))
     
     def get_degree(self, x):
         
@@ -55,7 +54,10 @@ class T1_Triangular(T1_sets):
     
 
 class T1_Gaussian(T1_sets):
-    
+
+    def __init__(self, mean, sd):
+        T1_sets.__init__(self, mean, sd, (mean-(4.0*sd), mean+(4.0*sd)))
+
     def get_degree(self, x):
         if(x>=self._interval[0] and x<=self._interval[1]):
             return np.exp(-np.power(x - self.mean, 2.) / (2*np.power(self.step, 2.)))    
@@ -72,7 +74,9 @@ class T1_Gaussian(T1_sets):
     
 
 class T1_RightShoulder(T1_sets):
-    
+
+    def __init__(self, a, b, c):
+        T1_sets.__init__(self, b, (c - a)/4.0, (a, c))
     
     def get_degree(self, x, maxDegree=1.0):
         left=self._interval[0]
@@ -96,7 +100,10 @@ class T1_RightShoulder(T1_sets):
 
 
 class T1_LeftShoulder(T1_sets):
-    
+
+    def __init__(self, a, b, c):
+        T1_sets.__init__(self, b, (c - a)/4.0, (a, c))
+
     def get_degree(self, x):
         left=self._interval[0]
         right=self._interval[1]

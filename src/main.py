@@ -113,36 +113,48 @@ class FIS(object):
         self.interval_time = 0
 
         # Control parameters
-        self.close_sensor_value = 10000
-        self.target_sensor_value = 7500
-        self.far_sensor_value = 5000
+        self.cp_very_close = 12000
+        self.cp_med_close = 10000
+        self.cp_close = 7000
+        self.cp_target = 7500
+        self.cp_far = 5500
+        self.cp_very_far = 3000
+
+        self.dist_multiplier = (15000 - self.cp_target)/15000
 
         self.name = "Steering"
-        # self.implication_method = min
-        # self.defuzz_method = centroid
 
-        very_close = T1_RightShoulder(12000, 500)
-        close = T1_Triangular(10000, 500)
-        medium = T1_Triangular(8000, 500)
-        far = T1_LeftShoulder(6000, 500)
+        very_close = T1_RightShoulder(self.cp_target + 1000, self.cp_target + 2000, self.cp_target + 3000)
+        # med_close = T1_Triangular(self.cp_close, self.cp_med_close, self.cp_very_close)
+        close = T1_Triangular(self.cp_target, self.cp_target + 1000, self.cp_target + 2000)
+        medium = T1_Triangular(self.cp_target - 1000, self.cp_target, self.cp_target + 1000)
+        far = T1_Triangular(self.cp_target - 2000, self.cp_target - 1000, self.cp_target)
+        very_far = T1_LeftShoulder(self.cp_target - 3000, self.cp_target - 2000, self.cp_target - 1000)
 
         # Right is -ve
         # Left is +ve
-        right = T1_Triangular_output(-0.5, 0.125, 1)
-        right_sharp = T1_LeftShoulder_output(-1, 0.125,1)
-        left = T1_RightShoulder_output(0.5, 0.125, 1)
-        straight = T1_Triangular_output(0, 0.05, 1)
-        Output_set = [left, straight, right, right_sharp]
+        right = T1_Triangular_output(-1, -0.5, 0.25, 1)
+        # right_med = T1_Triangular_output(-0.1, 0.125, 1)
+        right_sharp = T1_LeftShoulder_output(-1*self.dist_multiplier, -0.5, 0, 1)
+        left = T1_RightShoulder_output(-0.25, 0.5, 1, 1)
+        left_shallow = T1_Triangular_output(0, 0.1, 0.2, 1)
+        straight = T1_Triangular_output(-0.25, 0, 0.25, 1)
+        Output_set = [left, straight, right, right_sharp, left_shallow]
 
         Rule_1 = [[close], right, "If Close then Right"]
         Rule_2 = [[medium], straight, "If Medium then Straight"]
         Rule_3 = [[far], left, "If Far then Left"]
         Rule_4 = [[very_close], right_sharp, "If Very Close then Sharp Right"]
-        self.Rule_set = [Rule_1, Rule_2, Rule_3, Rule_4]
+        Rule_5 = [[very_far], left_shallow, "If Very Far then Shallow Left"]
+        # Rule_6 = [[med_close], right_med, "If Medium Close then Med Right"]
+        self.Rule_set = [Rule_1,
+                         Rule_2,
+                         Rule_3,
+                         Rule_4,
+                         Rule_5]
 
         # input with mean and sigma
         self.input_obj1 = T1_Gaussian(3, 1)
-        self.input_obj2 = T1_Gaussian(3, 1)
         input_set = [self.input_obj1]
 
     def update(self):
@@ -155,7 +167,8 @@ class FIS(object):
             output = centroid(aggregate(self.Rule_set, "max"))
             print output
 
-            #min speed
+            # Apply Output
+            # min speed
             min = 0.25
             max = 0.75
             diff = max - min
@@ -164,6 +177,7 @@ class FIS(object):
             twist.linear.x = ((1-abs(output))*diff) + min
             twist.angular.z = output
 
+            # Publish output
             self.pub_vel.publish(twist)
 
         return

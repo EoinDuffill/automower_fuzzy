@@ -2,13 +2,12 @@
 import numpy as np
 
 class output(object):
-    
-    
-    def __init__(self,mean,step,max_fs):
+
+    def __init__(self, mean, step, interval, max_fs):
         
         self._mean=mean
         self._step=step
-        self._interval= (mean-(4.0*step), mean+(4.0*step))
+        self._interval= interval
         self._max_fs=max_fs
       
     @property
@@ -22,14 +21,16 @@ class output(object):
     @property
     def max_fs(self):
         return self._max_fs
-    
-    
+
     def set_max_fs(self,fs):
         self._max_fs=fs
         
         
 class T1_Triangular_output(output):
-    
+
+    def __init__(self, a, b, c, max_fs):
+        output.__init__(self, b, (c - a)/4.0, (a, c), max_fs)
+
     def get_degree(self, x):
         
         left=self._interval[0]
@@ -48,8 +49,11 @@ class T1_Triangular_output(output):
         return(degree)   
     
 class T1_RightShoulder_output(output):
-    
-     def get_degree(self, x):
+
+    def __init__(self, a, b, c, max_fs):
+        output.__init__(self, b, (c - a) / 4.0, (a, c), max_fs)
+
+    def get_degree(self, x):
         if(x<self.interval[0] or x>self.interval[1]):
             return(min(0.0,self._max_fs))
         elif(x>=self.mean and x<=self.interval[1] ):
@@ -62,7 +66,10 @@ class T1_RightShoulder_output(output):
 
 
 class T1_LeftShoulder_output(output):
-    
+
+    def __init__(self, a, b, c, max_fs):
+        output.__init__(self, b, (c - a) / 4.0, (a, c), max_fs)
+
     def get_degree(self, x):
         if( x>self.interval[1]):
             return(min(0.0,self._max_fs))
