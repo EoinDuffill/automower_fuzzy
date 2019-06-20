@@ -20,18 +20,18 @@ from T1_output import T1_Triangular_output, T1_RightShoulder_output, T1_LeftShou
 
 def aggregate(rules,technique):
     #defining the domain
-    left=rules[0][1].interval[0]
-    right=rules[0][1].interval[1]
+    left = rules[0][1].interval[0]
+    right = rules[0][1].interval[1]
 
     for rule in rules:
-        if left> rule[1].interval[0]:
-            left=rule[1].interval[0] 
-        if right< rule[1].interval[1]:
-            right=rule[1].interval[1]
+        if left > rule[1].interval[0]:
+            left = rule[1].interval[0]
+        if right < rule[1].interval[1]:
+            right = rule[1].interval[1]
     disc_of_all = np.linspace(left, right, len(rules)*100)
 
-    if technique=="max":
-        degree=[]
+    if technique == "max":
+        degree = []
         
         for x in disc_of_all:
             max_degree = 0.0
@@ -53,19 +53,19 @@ def centroid((memberships, domain)):
     return numerator_sum/denominator_sum
 
 
-def rule_output(my_input,rule,operator):
+def rule_output(my_input, rule, operator):
     # TO DO multi input is not compatible
     # TO DO add a singleton option
 
-    fs=[]
+    fs = []
     for antecedent in rule:
-        if my_input.step==0:
+        if my_input.step == 0:
             fs.append(antecedent.get_degree(my_input.mean))
         else:
-            FSs_interation=inter_union(antecedent, my_input, 100)
+            FSs_interation = inter_union(antecedent, my_input, 100)
             fs.append(FSs_interation.return_firing_stregth("standard"))
 
-    if (operator=="min"):
+    if operator == "min":
         return min(fs)
 
 
@@ -80,17 +80,17 @@ class BoundarySensor(object):
 
     def calc_distri(self):
         if len(self.readings) > 0:
-            #Mean
+            # Mean
             sum = 0
             for reading in self.readings:
                 sum += reading
             self.prev_value = self.value
             self.value = (sum * 1.0)/len(self.readings)
 
-            #S.d.
+            # s.d.
             sum = 0
             for reading in self.readings:
-                sum += pow(reading - self.value,2)
+                sum += pow(reading - self.value, 2)
             self.sd = np.sqrt((sum * 1.0)/len(self.readings))
 
             self.readings = []
@@ -113,12 +113,7 @@ class FIS(object):
         self.interval_time = 0
 
         # Control parameters
-        self.cp_very_close = 12000
-        self.cp_med_close = 10000
-        self.cp_close = 7000
         self.cp_target = 7500
-        self.cp_far = 5500
-        self.cp_very_far = 3000
 
         self.dist_multiplier = (15000 - self.cp_target)/15000
 
@@ -139,23 +134,21 @@ class FIS(object):
         left = T1_RightShoulder_output(-0.25, 0.5, 1, 1)
         left_shallow = T1_Triangular_output(0, 0.1, 0.2, 1)
         straight = T1_Triangular_output(-0.25, 0, 0.25, 1)
-        Output_set = [left, straight, right, right_sharp, left_shallow]
 
-        Rule_1 = [[close], right, "If Close then Right"]
-        Rule_2 = [[medium], straight, "If Medium then Straight"]
-        Rule_3 = [[far], left, "If Far then Left"]
-        Rule_4 = [[very_close], right_sharp, "If Very Close then Sharp Right"]
-        Rule_5 = [[very_far], left_shallow, "If Very Far then Shallow Left"]
+        rule_1 = [[close], right, "If Close then Right"]
+        rule_2 = [[medium], straight, "If Medium then Straight"]
+        rule_3 = [[far], left, "If Far then Left"]
+        rule_4 = [[very_close], right_sharp, "If Very Close then Sharp Right"]
+        rule_5 = [[very_far], left_shallow, "If Very Far then Shallow Left"]
         # Rule_6 = [[med_close], right_med, "If Medium Close then Med Right"]
-        self.Rule_set = [Rule_1,
-                         Rule_2,
-                         Rule_3,
-                         Rule_4,
-                         Rule_5]
+        self.Rule_set = [rule_1,
+                         rule_2,
+                         rule_3,
+                         rule_4,
+                         rule_5]
 
         # input with mean and sigma
         self.input_obj1 = T1_Gaussian(3, 1)
-        input_set = [self.input_obj1]
 
     def update(self):
         # Get sensor value avg's since last update
