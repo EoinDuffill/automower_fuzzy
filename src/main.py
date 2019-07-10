@@ -12,6 +12,7 @@ from geometry_msgs.msg import Twist
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import copy
 
 from T1_set import T1_Gaussian, T1_Triangular, T1_RightShoulder, T1_LeftShoulder
 from inter_union import inter_union
@@ -19,6 +20,7 @@ from T1_output import T1_Triangular_output, T1_RightShoulder_output, T1_LeftShou
 
 
 def aggregate(rules,technique):
+
     #defining the domain
     left = rules[0][1].interval[0]
     right = rules[0][1].interval[1]
@@ -38,9 +40,9 @@ def aggregate(rules,technique):
             for rule in rules:
                 if max_degree < rule[1].get_degree(x):
                     max_degree = rule[1].get_degree(x)
-            degree.append(max_degree) 
-            
-        return degree , disc_of_all
+            degree.append(max_degree)
+
+        return degree, disc_of_all
 
 
 def centroid((memberships, domain)):
@@ -57,12 +59,16 @@ def rule_output(my_input, rule, operator):
     # TO DO multi input is not compatible
     # TO DO add a singleton option
 
+    # check the consistency of the antecedents and input
+    if (len(rule) != len(my_input)):  # !!
+        raise Exception("The antecedents and inputs numbers are not equal")
+
     fs = []
-    for antecedent in rule:
-        if my_input.step == 0:
-            fs.append(antecedent.get_degree(my_input.mean))
+    for index in range(len(rule)):  # !!
+        if my_input[index].step == 0:
+            fs.append(rule[index].get_degree(my_input[index].mean))
         else:
-            FSs_interation = inter_union(antecedent, my_input, 100)
+            FSs_interation = inter_union(rule[index], my_input[index], 100)
             fs.append(FSs_interation.return_firing_stregth("standard"))
 
     if operator == "min":
@@ -101,7 +107,7 @@ class FIS(object):
     def __init__(self):
         self.update_rate = 5
 
-        #Publish output here
+        # Publish output here
         self.pub_vel = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
 
         # FC, FR, RL, RR, init w/ x,y co-ords on the automower
@@ -112,6 +118,11 @@ class FIS(object):
         self.observation_count = 0
         self.interval_time = 0
 
+        self.x = []
+        self.counter = 0
+        self.mean_list = []
+        self.file = open("mean_error_results.txt", "w")
+
         # Control parameters
         self.cp_target = 7500
 
@@ -119,6 +130,7 @@ class FIS(object):
 
         self.name = "Steering"
 
+        # input 1 MF's
         very_close = T1_RightShoulder(self.cp_target + 1000, self.cp_target + 2000, self.cp_target + 3000)
         # med_close = T1_Triangular(self.cp_close, self.cp_med_close, self.cp_very_close)
         close = T1_Triangular(self.cp_target, self.cp_target + 1000, self.cp_target + 2000)
@@ -126,36 +138,72 @@ class FIS(object):
         far = T1_Triangular(self.cp_target - 2000, self.cp_target - 1000, self.cp_target)
         very_far = T1_LeftShoulder(self.cp_target - 3000, self.cp_target - 2000, self.cp_target - 1000)
 
+        # input 2 MF's
+        negative = T1_LeftShoulder(-500, -250, 0)
+        none = T1_Triangular(-250, 0, 250)
+        positive = T1_RightShoulder(0, 250, 500)
+
+
         # Right is -ve
         # Left is +ve
         right = T1_Triangular_output(-1, -0.5, 0.25, 1)
         # right_med = T1_Triangular_output(-0.1, 0.125, 1)
-        right_sharp = T1_LeftShoulder_output(-1*self.dist_multiplier, -0.5, 0, 1)
+        right_sharp = T1_LeftShoulder_output(-1*self.dist_multiplier, -0.5*self.dist_multiplier, 0, 1)
         left = T1_RightShoulder_output(-0.25, 0.5, 1, 1)
         left_shallow = T1_Triangular_output(0, 0.1, 0.2, 1)
         straight = T1_Triangular_output(-0.25, 0, 0.25, 1)
 
-        rule_1 = [[close], right, "If Close then Right"]
-        rule_2 = [[medium], straight, "If Medium then Straight"]
-        rule_3 = [[far], left, "If Far then Left"]
-        rule_4 = [[very_close], right_sharp, "If Very Close then Sharp Right"]
-        rule_5 = [[very_far], left_shallow, "If Very Far then Shallow Left"]
+        rule_1 = [[close, positive], copy.copy(right), "If Close and +ve delta then Right"]
+        rule_2 = [[close, none], copy.copy(straight), "If Close and no delta then Straight"]
+        rule_3 = [[close, negative], copy.copy(straight), "If Close and -ve delta then Left"]
+        rule_4 = [[medium, positive], copy.copy(right), "If Medium and +ve delta then Straight"]
+        rule_5 = [[medium, none], copy.copy(straight), "If Medium and no delta then Straight"]
+        rule_6 = [[medium, negative], copy.copy(left), "If Medium and -ve delta then Straight"]
+        rule_7 = [[far, positive], copy.copy(straight), "If Far and +ve delta then Straight"]
+        rule_8 = [[far, none], copy.copy(straight), "If Far and no delta then Straight"]
+        rule_9 = [[far, negative], copy.copy(left), "If Far and -ve delta then Left"]
+        rule_10= [[very_close, positive], copy.copy(right_sharp), "If Very Close and +ve delta then Sharp Right"]
+        rule_11= [[very_close, none], copy.copy(right), "If Very Close and no delta then Right"]
+        rule_12= [[very_close, negative], copy.copy(straight), "If Very Close and -ve delta then Straight"]
+        rule_13= [[very_far, positive], copy.copy(left_shallow), "If Very Far and +ve delta then Shallow Left"]
+        rule_14= [[very_far, none], copy.copy(left_shallow), "If Very Far and no delta then Shallow Left"]
+        rule_15= [[very_far, negative], copy.copy(left_shallow), "If Very Far and -ve delta then Shallow Left"]
         # Rule_6 = [[med_close], right_med, "If Medium Close then Med Right"]
         self.Rule_set = [rule_1,
                          rule_2,
                          rule_3,
                          rule_4,
-                         rule_5]
+                         rule_5,
+                         rule_6,
+                         rule_7,
+                         rule_8,
+                         rule_9,
+                         rule_10,
+                         rule_11,
+                         rule_12,
+                         rule_13,
+                         rule_14,
+                         rule_15]
 
         # input with mean and sigma
-        self.input_obj1 = T1_Gaussian(3, 1)
+        self.input_obj1 = T1_Gaussian(0, 1)
+        self.input_obj2 = T1_Gaussian(0, 1)
 
     def update(self):
         # Get sensor value avg's since last update
         #
         if self.avg_loop() != -1:
             self.input_obj1 = T1_Gaussian(self.front_center.value, self.front_center.sd)
-            self.evalFIS(self.input_obj1)
+            self.input_obj2 = T1_Gaussian(self.front_center.value - self.front_center.prev_value, self.front_center.sd)
+
+            # create alist of inputs
+            inputs = [self.input_obj1, self.input_obj2]  # !!
+
+            # self.evalFIS(self.input_obj1)
+            # send all the inputs as params#!!
+            self.evalFIS(inputs)  # !!
+
+
 
             output = centroid(aggregate(self.Rule_set, "max"))
             print output
@@ -175,12 +223,22 @@ class FIS(object):
 
         return
 
-    def evalFIS(self, input):
-        print "Mean = " + str(input.mean) + ", S.D. = " + str(input.step)
+    def evalFIS(self, inputs):
+        print "--- Multi Inputs ----"  # !!
+        for input in inputs:  # !!
+            print "Mean = " + str(input.mean) + ", S.D. = " + str(input.step)  # !!
+        print "---------------"  # !!
 
-        for rule in self.Rule_set:
-            rule[1].set_max_fs(rule_output(input, rule[0], "min"))
+        self.counter += 1
+        self.file.write(str(self.counter) + ", " + str(inputs[0].mean)+"\n")
+
+        for index, rule in enumerate(self.Rule_set):
+
+            rule[1].set_max_fs(float(rule_output(inputs, rule[0], "min")))
             print rule[2]+"\t" + str(rule[1].max_fs)
+
+
+
 
     # Accumulate loop sensor observations
     def parse_loop(self, data):
@@ -210,6 +268,7 @@ class FIS(object):
 
     def fini(self):
         print('Finishing...')
+
 
     def run(self):
         try:

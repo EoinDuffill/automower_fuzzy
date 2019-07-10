@@ -8,7 +8,7 @@ class output(object):
         self._mean=mean
         self._step=step
         self._interval= interval
-        self._max_fs=max_fs
+        self._max_fs = max_fs
       
     @property
     def interval(self):
