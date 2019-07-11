@@ -34,7 +34,7 @@ def aggregate(rules,technique):
 
     if technique == "max":
         degree = []
-        
+
         for x in disc_of_all:
             max_degree = 0.0
             for rule in rules:
@@ -146,30 +146,42 @@ class FIS(object):
 
         # Right is -ve
         # Left is +ve
-        right = T1_Triangular_output(-1, -0.5, 0.25, 1)
+
         # right_med = T1_Triangular_output(-0.1, 0.125, 1)
         right_sharp = T1_LeftShoulder_output(-1*self.dist_multiplier, -0.5*self.dist_multiplier, 0, 1)
-        left = T1_RightShoulder_output(-0.25, 0.5, 1, 1)
         left_shallow = T1_Triangular_output(0, 0.1, 0.2, 1)
         straight = T1_Triangular_output(-0.25, 0, 0.25, 1)
 
-        rule_1 = [[close, positive], copy.copy(right), "If Close and +ve delta then Right"]
-        rule_2 = [[close, none], copy.copy(straight), "If Close and no delta then Straight"]
-        rule_3 = [[close, negative], copy.copy(straight), "If Close and -ve delta then Left"]
-        rule_4 = [[medium, positive], copy.copy(right), "If Medium and +ve delta then Straight"]
-        rule_5 = [[medium, none], copy.copy(straight), "If Medium and no delta then Straight"]
-        rule_6 = [[medium, negative], copy.copy(left), "If Medium and -ve delta then Straight"]
-        rule_7 = [[far, positive], copy.copy(straight), "If Far and +ve delta then Straight"]
-        rule_8 = [[far, none], copy.copy(straight), "If Far and no delta then Straight"]
-        rule_9 = [[far, negative], copy.copy(left), "If Far and -ve delta then Left"]
-        rule_10= [[very_close, positive], copy.copy(right_sharp), "If Very Close and +ve delta then Sharp Right"]
-        rule_11= [[very_close, none], copy.copy(right), "If Very Close and no delta then Right"]
-        rule_12= [[very_close, negative], copy.copy(straight), "If Very Close and -ve delta then Straight"]
-        rule_13= [[very_far, positive], copy.copy(left_shallow), "If Very Far and +ve delta then Shallow Left"]
-        rule_14= [[very_far, none], copy.copy(left_shallow), "If Very Far and no delta then Shallow Left"]
-        rule_15= [[very_far, negative], copy.copy(left_shallow), "If Very Far and -ve delta then Shallow Left"]
+        right = T1_Triangular_output(-1, -0.5, 0.25, 1)
+
+
+        left = T1_RightShoulder_output(-0.25, 0.5, 1, 1)
+
+        right_pair = self.create_output_pair(T1_Triangular_output, T1_Triangular_output, [-1, -0.5, 0.25])
+        right_sharp_pair = self.create_output_pair(T1_LeftShoulder_output, T1_RightShoulder_output, [-1, -0.5, 0])
+
+        left_pair = self.create_output_pair(T1_RightShoulder_output, T1_LeftShoulder_output, [-0.25, -0.5, 1])
+        left_shallow_pair = self.create_output_pair(T1_Triangular_output, T1_Triangular_output, [0, 0.1, 0.2])
+
+        straight_pair = self.create_output_pair(T1_Triangular_output, T1_Triangular_output, [-0.25, 0, 0.25])
+
+        rule_1 = [[close, positive], copy.deepcopy(right_pair), "If Close and +ve delta then Right"]
+        rule_2 = [[close, none], copy.deepcopy(right_pair), "If Close and no delta then Straight"]
+        rule_3 = [[close, negative], copy.deepcopy(straight_pair), "If Close and -ve delta then Left"]
+        rule_4 = [[medium, positive], copy.deepcopy(right_pair), "If Medium and +ve delta then Right"]
+        rule_5 = [[medium, none], copy.deepcopy(straight_pair), "If Medium and no delta then Straight"]
+        rule_6 = [[medium, negative], copy.deepcopy(left_pair), "If Medium and -ve delta then Left"]
+        rule_7 = [[far, positive], copy.deepcopy(straight_pair), "If Far and +ve delta then Straight"]
+        rule_8 = [[far, none], copy.deepcopy(left_pair), "If Far and no delta then Left"]
+        rule_9 = [[far, negative], copy.deepcopy(left_pair), "If Far and -ve delta then Left"]
+        rule_10= [[very_close, positive], copy.deepcopy(right_sharp_pair), "If Very Close and +ve delta then Sharp Right"]
+        rule_11= [[very_close, none], copy.deepcopy(right_pair), "If Very Close and no delta then Right"]
+        rule_12= [[very_close, negative], copy.deepcopy(straight_pair), "If Very Close and -ve delta then Straight"]
+        rule_13= [[very_far, positive], copy.deepcopy(left_shallow_pair), "If Very Far and +ve delta then Shallow Left"]
+        rule_14= [[very_far, none], copy.deepcopy(left_shallow_pair), "If Very Far and no delta then Shallow Left"]
+        rule_15= [[very_far, negative], copy.deepcopy(left_pair), "If Very Far and -ve delta then Left"]
         # Rule_6 = [[med_close], right_med, "If Medium Close then Med Right"]
-        self.Rule_set = [rule_1,
+        Rule_set_base = [rule_1,
                          rule_2,
                          rule_3,
                          rule_4,
@@ -185,9 +197,26 @@ class FIS(object):
                          rule_14,
                          rule_15]
 
+        self.Rule_set = self.split_ruleset(Rule_set_base)
+        self.inverse_rules = True
+
         # input with mean and sigma
         self.input_obj1 = T1_Gaussian(0, 1)
         self.input_obj2 = T1_Gaussian(0, 1)
+
+    def create_output_pair(self, f1, f2, params):
+        return (f1(params[0], params[1], params[2], 1), f2(-params[2], -params[1], -params[0], 1))
+
+    def split_ruleset(self, ruleset):
+
+        rules_new = []
+        rules_new_inv = []
+
+        for rule in ruleset:
+            rules_new.append([rule[0], rule[1][0], rule[2]])
+            rules_new_inv.append([rule[0], rule[1][1], rule[2]])
+
+        return (rules_new, rules_new_inv)
 
     def update(self):
         # Get sensor value avg's since last update
@@ -203,9 +232,13 @@ class FIS(object):
             # send all the inputs as params#!!
             self.evalFIS(inputs)  # !!
 
+            if self.inverse_rules:
+                rules = self.Rule_set[1]
+            else:
+                rules = self.Rule_set[0]
 
+            output = centroid(aggregate(rules, "max"))
 
-            output = centroid(aggregate(self.Rule_set, "max"))
             print output
 
             # Apply Output
@@ -230,15 +263,17 @@ class FIS(object):
         print "---------------"  # !!
 
         self.counter += 1
-        self.file.write(str(self.counter) + ", " + str(inputs[0].mean)+"\n")
+        self.file.write(str(self.counter) + ", " + str(abs(inputs[0].mean - self.cp_target))+"\n")
 
-        for index, rule in enumerate(self.Rule_set):
+        if self.inverse_rules:
+            rules = self.Rule_set[1]
+        else:
+            rules = self.Rule_set[0]
+
+        for index, rule in enumerate(rules):
 
             rule[1].set_max_fs(float(rule_output(inputs, rule[0], "min")))
             print rule[2]+"\t" + str(rule[1].max_fs)
-
-
-
 
     # Accumulate loop sensor observations
     def parse_loop(self, data):
