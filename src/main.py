@@ -143,19 +143,8 @@ class FIS(object):
         none = T1_Triangular(-250, 0, 250)
         positive = T1_RightShoulder(0, 250, 500)
 
-
-        # Right is -ve
-        # Left is +ve
-
-        # right_med = T1_Triangular_output(-0.1, 0.125, 1)
-        right_sharp = T1_LeftShoulder_output(-1*self.dist_multiplier, -0.5*self.dist_multiplier, 0, 1)
-        left_shallow = T1_Triangular_output(0, 0.1, 0.2, 1)
-        straight = T1_Triangular_output(-0.25, 0, 0.25, 1)
-
-        right = T1_Triangular_output(-1, -0.5, 0.25, 1)
-
-
-        left = T1_RightShoulder_output(-0.25, 0.5, 1, 1)
+        # Output turn direction, right = -ve, left = +ve
+        # Output MF's
 
         right_pair = self.create_output_pair(T1_Triangular_output, T1_Triangular_output, [-1, -0.5, 0.25])
         right_sharp_pair = self.create_output_pair(T1_LeftShoulder_output, T1_RightShoulder_output, [-1, -0.5, 0])
@@ -164,6 +153,9 @@ class FIS(object):
         left_shallow_pair = self.create_output_pair(T1_Triangular_output, T1_Triangular_output, [0, 0.1, 0.2])
 
         straight_pair = self.create_output_pair(T1_Triangular_output, T1_Triangular_output, [-0.25, 0, 0.25])
+
+        # DEBUG TODO
+        # plot(close.get_mf_degrees())
 
         rule_1 = [[close, positive], copy.deepcopy(right_pair), "If Close and +ve delta then Right"]
         rule_2 = [[close, none], copy.deepcopy(right_pair), "If Close and no delta then Straight"]
@@ -180,8 +172,8 @@ class FIS(object):
         rule_13= [[very_far, positive], copy.deepcopy(left_shallow_pair), "If Very Far and +ve delta then Shallow Left"]
         rule_14= [[very_far, none], copy.deepcopy(left_shallow_pair), "If Very Far and no delta then Shallow Left"]
         rule_15= [[very_far, negative], copy.deepcopy(left_pair), "If Very Far and -ve delta then Left"]
-        # Rule_6 = [[med_close], right_med, "If Medium Close then Med Right"]
-        Rule_set_base = [rule_1,
+
+        rule_set_base = [rule_1,
                          rule_2,
                          rule_3,
                          rule_4,
@@ -197,15 +189,15 @@ class FIS(object):
                          rule_14,
                          rule_15]
 
-        self.Rule_set = self.split_ruleset(Rule_set_base)
-        self.inverse_rules = True
+        self.Rule_set = self.split_ruleset(rule_set_base)
+        self.inverse_rules = False
 
         # input with mean and sigma
         self.input_obj1 = T1_Gaussian(0, 1)
         self.input_obj2 = T1_Gaussian(0, 1)
 
     def create_output_pair(self, f1, f2, params):
-        return (f1(params[0], params[1], params[2], 1), f2(-params[2], -params[1], -params[0], 1))
+        return f1(params[0], params[1], params[2], 1), f2(-params[2], -params[1], -params[0], 1)
 
     def split_ruleset(self, ruleset):
 
@@ -222,8 +214,8 @@ class FIS(object):
         # Get sensor value avg's since last update
         #
         if self.avg_loop() != -1:
-            self.input_obj1 = T1_Gaussian(self.front_center.value, self.front_center.sd)
-            self.input_obj2 = T1_Gaussian(self.front_center.value - self.front_center.prev_value, self.front_center.sd)
+            self.input_obj1 = T1_Gaussian(self.front_center.value, 0)
+            self.input_obj2 = T1_Gaussian(self.front_center.value - self.front_center.prev_value, 0)
 
             # create alist of inputs
             inputs = [self.input_obj1, self.input_obj2]  # !!
