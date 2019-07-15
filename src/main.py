@@ -73,6 +73,20 @@ def rule_output(my_input, rule, operator):
     if operator == "min":
         return min(fs)
 
+def noise_estimation(collected_sensor_values):
+
+    if len(collected_sensor_values) > 1:
+        diff_list = []
+        for index, i in enumerate(collected_sensor_values[:-1]):
+            try:
+                diff_list.append((collected_sensor_values[index + 1] - i) / float(np.sqrt(2)))
+            except:
+                print("An exception occurred in the noise estimation")
+
+        return (np.std(diff_list))
+    else:
+        return 0
+
 
 class BoundarySensor(object):
     def __init__(self, x, y):
@@ -82,6 +96,7 @@ class BoundarySensor(object):
         self.prev_value = 0
         self.value = 0
         self.sd = 0
+        self.noise_estimate = 0
 
     def calc_distri(self):
         if len(self.readings) > 0:
@@ -98,7 +113,11 @@ class BoundarySensor(object):
                 sum += pow(reading - self.value, 2)
             self.sd = np.sqrt((sum * 1.0)/len(self.readings))
 
+            # noise
+            self.noise_estimate = noise_estimation(self.readings)
+
             self.readings = []
+
 
 
 class FIS(object):
@@ -213,7 +232,7 @@ class FIS(object):
         # Get sensor value avg's since last update
         #
         if self.avg_loop() != -1:
-            self.input_obj1 = T1_Gaussian(self.front_center.value, self.noise_estimation(self.front_center.readings))
+            self.input_obj1 = T1_Gaussian(self.front_center.value, self.front_center.noise_estimate)
             self.input_obj2 = T1_Gaussian(self.front_center.value - self.front_center.prev_value, 0)
 
             # create alist of inputs
@@ -292,16 +311,7 @@ class FIS(object):
             self.observation_count = 0
             return 1
 
-    def noise_estimation(self, collected_sensor_values):
 
-        diff_list = []
-        for index, i in enumerate(collected_sensor_values[:-1]):
-            try:
-                diff_list.append((collected_sensor_values[index + 1] - i) / float(np.sqrt(2)))
-            except:
-                print("An exception occurred in the noise estimation")
-
-        return (np.std(diff_list))
 
     def fini(self):
         print('Finishing...')
