@@ -20,7 +20,6 @@ from T1_output import T1_Triangular_output, T1_RightShoulder_output, T1_LeftShou
 
 
 def aggregate(rules,technique):
-
     #defining the domain
     left = rules[0][1].interval[0]
     right = rules[0][1].interval[1]
@@ -130,7 +129,7 @@ class FIS(object):
 
         self.name = "Steering"
 
-        # input 1 MF's
+        # antecent 1 MF's
         very_close = T1_RightShoulder(self.cp_target + 1000, self.cp_target + 2000, self.cp_target + 3000)
         # med_close = T1_Triangular(self.cp_close, self.cp_med_close, self.cp_very_close)
         close = T1_Triangular(self.cp_target, self.cp_target + 1000, self.cp_target + 2000)
@@ -214,7 +213,7 @@ class FIS(object):
         # Get sensor value avg's since last update
         #
         if self.avg_loop() != -1:
-            self.input_obj1 = T1_Gaussian(self.front_center.value, 0)
+            self.input_obj1 = T1_Gaussian(self.front_center.value, self.noise_estimation(self.front_center.readings))
             self.input_obj2 = T1_Gaussian(self.front_center.value - self.front_center.prev_value, 0)
 
             # create alist of inputs
@@ -292,6 +291,17 @@ class FIS(object):
 
             self.observation_count = 0
             return 1
+
+    def noise_estimation(self, collected_sensor_values):
+
+        diff_list = []
+        for index, i in enumerate(collected_sensor_values[:-1]):
+            try:
+                diff_list.append((collected_sensor_values[index + 1] - i) / float(np.sqrt(2)))
+            except:
+                print("An exception occurred in the noise estimation")
+
+        return (np.std(diff_list))
 
     def fini(self):
         print('Finishing...')
