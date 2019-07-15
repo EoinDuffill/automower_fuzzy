@@ -17,6 +17,7 @@ import copy
 from T1_set import T1_Gaussian, T1_Triangular, T1_RightShoulder, T1_LeftShoulder
 from inter_union import inter_union
 from T1_output import T1_Triangular_output, T1_RightShoulder_output, T1_LeftShoulder_output
+from draw_fis import draw_fis
 
 
 def aggregate(rules,technique):
@@ -164,10 +165,10 @@ class FIS(object):
         # Output turn direction, right = -ve, left = +ve
         # Output MF's
 
-        right_pair = self.create_output_pair(T1_Triangular_output, T1_Triangular_output, [-1, -0.5, 0.25])
-        right_sharp_pair = self.create_output_pair(T1_LeftShoulder_output, T1_RightShoulder_output, [-1, -0.5, 0])
+        right_pair = self.create_output_pair(T1_Triangular_output, T1_Triangular_output, [-1, -0.25, 0])
+        right_sharp_pair = self.create_output_pair(T1_LeftShoulder_output, T1_RightShoulder_output, [-1, -0.75, -0.5])
 
-        left_pair = self.create_output_pair(T1_RightShoulder_output, T1_LeftShoulder_output, [-0.25, -0.5, 1])
+        left_pair = self.create_output_pair(T1_Triangular_output, T1_Triangular_output, [0, 0.25, 1])
         left_shallow_pair = self.create_output_pair(T1_Triangular_output, T1_Triangular_output, [0, 0.1, 0.2])
 
         straight_pair = self.create_output_pair(T1_Triangular_output, T1_Triangular_output, [-0.25, 0, 0.25])
@@ -213,6 +214,12 @@ class FIS(object):
         # input with mean and sigma
         self.input_obj1 = T1_Gaussian(0, 1)
         self.input_obj2 = T1_Gaussian(0, 1)
+
+        plots = draw_fis([
+            [very_close, close, medium, far, very_far],
+            [negative, none, positive]],
+            [right_sharp_pair, right_pair, straight_pair, left_pair, left_shallow_pair])
+        plots.plot()
 
     def create_output_pair(self, f1, f2, params):
         return f1(params[0], params[1], params[2], 1), f2(-params[2], -params[1], -params[0], 1)
