@@ -173,7 +173,8 @@ class FIS(object):
 
         straight_pair = self.create_output_pair(T1_Triangular_output, T1_Triangular_output, [-0.25, 0, 0.25])
 
-        # DEBUG TODO
+        # DEBUG TODO 
+
         # plot(close.get_mf_degrees())
 
         rule_1 = [[close, positive], copy.deepcopy(right_pair), "If Close and +ve delta then Right"]
