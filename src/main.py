@@ -94,7 +94,7 @@ class BoundarySensor(object):
         self.x = x
         self.y = y
         self.readings = []
-        self.prev_value = 0
+        self.prev_value = None
         self.value = 0
         self.sd = 0
         self.noise_estimate = 0
@@ -123,7 +123,7 @@ class BoundarySensor(object):
 
 class FIS(object):
 
-    def __init__(self):
+    def __init__(self, observe):
         self.update_rate = 5
 
         # Publish output here
@@ -141,6 +141,8 @@ class FIS(object):
         self.counter = 0
         self.mean_list = []
         self.file = open("mean_error_results.txt", "w")
+        if not observe:
+            self.file_inputs = open("fuzzy_inputs.txt", "w")
 
         # Control parameters
         self.cp_target = 7500
@@ -216,11 +218,13 @@ class FIS(object):
         self.input_obj1 = T1_Gaussian(0, 1)
         self.input_obj2 = T1_Gaussian(0, 1)
 
-        plots = draw_fis([
+        self.plots = draw_fis([
             [very_close, close, medium, far, very_far],
             [negative, none, positive]],
             [right_sharp_pair, right_pair, straight_pair, left_pair, left_shallow_pair])
-        plots.plot()
+        #self.plots.plot()
+
+
 
     def create_output_pair(self, f1, f2, params):
         return f1(params[0], params[1], params[2], 1), f2(-params[2], -params[1], -params[0], 1)
@@ -239,9 +243,14 @@ class FIS(object):
     def update(self):
         # Get sensor value avg's since last update
         #
+
+
         if self.avg_loop() != -1:
             self.input_obj1 = T1_Gaussian(self.front_center.value, self.front_center.noise_estimate)
-            self.input_obj2 = T1_Gaussian(self.front_center.value - self.front_center.prev_value, 0)
+            if self.front_center.prev_value is not None:
+                self.input_obj2 = T1_Gaussian(self.front_center.value - self.front_center.prev_value, 0)
+            else:
+                self.input_obj2 = T1_Gaussian(0,0)
 
             # create alist of inputs
             inputs = [self.input_obj1, self.input_obj2]  # !!
@@ -280,7 +289,11 @@ class FIS(object):
             print "Mean = " + str(input.mean) + ", S.D. = " + str(input.step)  # !!
         print "---------------"  # !!
 
+
         self.counter += 1
+
+        self.file_inputs.write( str(self.counter) + ", " + str(inputs[0].mean) + "\t"+ str(inputs[0].step) + "\t" + str(inputs[1].mean) + "\t" + str(inputs[1].step) + "\n")
+
         self.file.write(str(self.counter) + ", " + str(abs(inputs[0].mean - self.cp_target))+"\n")
 
         if self.inverse_rules:
@@ -341,5 +354,5 @@ class FIS(object):
 
 if __name__ == '__main__':
     rospy.init_node('automower_fuzzy')
-    automower_fuzzy = FIS()
+    automower_fuzzy = FIS(False)
     automower_fuzzy.run()
