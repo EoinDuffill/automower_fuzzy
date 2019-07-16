@@ -45,12 +45,16 @@ class T1_Triangular(T1_sets):
             
         return(degree)   
     
-    def get_mf_degrees(self):
+    def get_mf_degrees(self, step):
         list_of_mf=[]
-        for i in self.list_of_x:
-            list_of_mf.append(self.get_degree(i))
+        list_of_x = []
+        for index, i in enumerate(self.list_of_x):
+            if index % step == 0:
+                list_of_x.append(self.list_of_x[index])
+                list_of_mf.append(self.get_degree(i))
         list_of_mf=np.asarray(list_of_mf)
-        return(self.list_of_x, list_of_mf)    
+        list_of_x=np.asarray(list_of_x)
+        return(list_of_x, list_of_mf)
     
 
 class T1_Gaussian(T1_sets):
@@ -64,13 +68,20 @@ class T1_Gaussian(T1_sets):
         else:
             return 0.0   
     
-    def get_mf_degrees(self):
+    def get_mf_degrees(self, step):
 
-        list_of_mf=[]
-        for i in self.list_of_x:
-            list_of_mf.append(self.get_degree(i))
-        list_of_mf=np.asarray(list_of_mf)
-        return(self.list_of_x,list_of_mf)
+        if self.step == 0:
+            return np.asarray([self.mean, self.mean]), np.asarray([0, 1])
+
+        list_of_mf = []
+        list_of_x = []
+        for index, i in enumerate(self.list_of_x):
+            if index % step == 0:
+                list_of_x.append(self.list_of_x[index])
+                list_of_mf.append(self.get_degree(i))
+        list_of_mf = np.asarray(list_of_mf)
+        list_of_x = np.asarray(list_of_x)
+        return (list_of_x, list_of_mf)
     
 
 class T1_RightShoulder(T1_sets):
@@ -91,12 +102,16 @@ class T1_RightShoulder(T1_sets):
         else:
             raise ValueError("Something wrong with x in Right Shoulder.")    
     
-    def get_mf_degrees(self):
-        list_of_mf=[]
-        for i in self.list_of_x:
-            list_of_mf.append(self.get_degree(i))
-        list_of_mf=np.asarray(list_of_mf)
-        return(self.list_of_x, list_of_mf)
+    def get_mf_degrees(self, step):
+        list_of_mf = []
+        list_of_x = []
+        for index, i in enumerate(self.list_of_x):
+            if index % step == 0:
+                list_of_x.append(self.list_of_x[index])
+                list_of_mf.append(self.get_degree(i))
+        list_of_mf = np.asarray(list_of_mf)
+        list_of_x = np.asarray(list_of_x)
+        return (list_of_x, list_of_mf)
 
 
 class T1_LeftShoulder(T1_sets):
@@ -118,10 +133,14 @@ class T1_LeftShoulder(T1_sets):
             raise ValueError("Something wrong with x in Left Shoulder.")    
     
     
-    def get_mf_degrees(self):
-        list_of_mf=[]
-        for i in self.list_of_x:
-            list_of_mf.append(self.get_degree(i))
-        list_of_mf=np.asarray(list_of_mf)
-        return(self.list_of_x, list_of_mf)   
+    def get_mf_degrees(self, step):
+        list_of_mf = []
+        list_of_x = []
+        for index, i in enumerate(self.list_of_x):
+            if index % step == 0:
+                list_of_x.append(self.list_of_x[index])
+                list_of_mf.append(self.get_degree(i))
+        list_of_mf = np.asarray(list_of_mf)
+        list_of_x = np.asarray(list_of_x)
+        return (list_of_x, list_of_mf)
         
