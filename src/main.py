@@ -69,6 +69,7 @@ def rule_output(my_input, rule, operator):
             fs.append(rule[index].get_degree(my_input[index].mean))
         else:
             FSs_interation = inter_union(rule[index], my_input[index], 100)
+            #TO DO tr different parameters (i.e cen_NS, sim_NS and sub_NS) 
             fs.append(FSs_interation.return_firing_stregth("standard"))
 
     if operator == "min":
@@ -302,7 +303,7 @@ class FIS(object):
             rules = self.Rule_set[0]
 
         for index, rule in enumerate(rules):
-
+            
             rule[1].set_max_fs(float(rule_output(inputs, rule[0], "min")))
             print rule[2]+"\t" + str(rule[1].max_fs)
 
