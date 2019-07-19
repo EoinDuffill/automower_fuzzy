@@ -1,0 +1,4 @@
+Experiment:
+Non-singleton - SUB_NS
+Multi-input  (2)
+Noise: uniform, +/-10%sensor value

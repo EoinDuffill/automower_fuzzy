@@ -1,0 +1,5 @@
+Experiment:
+Noise free singleton vs Noisy non-singleton (SIM_NS)
+Mutli-input
+Noise: Uniform, +/- 10% sensor value
+
