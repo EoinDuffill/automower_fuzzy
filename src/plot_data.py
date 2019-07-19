@@ -61,6 +61,8 @@ def main():
 		# Plot parsed points
 		plt.plot(np.array(x_points), np.array(list))
 
+		print(sum(list) / len(list))
+
 		# Find and update min/max bounds in x and y
 		if np.amin(x) < min_x_bounds:
 			min_x_bounds = np.amin(x)
@@ -72,6 +74,7 @@ def main():
 			max_y_bounds = np.amax(y)
 
 	print(min_x_bounds, max_x_bounds)
+
 
 	# axis sqaured off, uniform in x and y
 	# plt.axis('equal')
