@@ -1,0 +1,6 @@
+Experiment:
+
+1 Lap + 1 Straight starting from simulation load position
+Non singleton 
+Single input FIS
+Noise: Uniform, +/- 20% sensor value

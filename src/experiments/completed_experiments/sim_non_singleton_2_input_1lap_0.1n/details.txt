@@ -1,0 +1,4 @@
+Experiment:
+Multi-Input (2)
+Non-singleton
+Noise: uniform, +/-10% sensor value
