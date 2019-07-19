@@ -9,6 +9,7 @@ from T1_set import T1_Gaussian, T1_Triangular, T1_RightShoulder, T1_LeftShoulder
 
 
 def main():
+    print ""
     try:
         data = open(sys.argv[1], "r")
         print("Opening " + sys.argv[1] + "...")
@@ -22,15 +23,61 @@ def main():
     try:
         step = int(sys.argv[2])
     except:
-        print("No appropriate step given, defaulting to 10")
-        step = 10
+        print("No appropriate step given, defaulting to 5")
+        step = 5
 
+    try:
+        data_nf = open(sys.argv[3], "r")
+        print("Opening Noise Free Variant "+sys.argv[3] + "...")
+    except IOError:
+        print("Cannot find file: " + sys.argv[3])
+        return
+
+    except:
+        print("No noise free variant detected")
+        data_nf = None
+
+    print ""
+
+    y_points = parse_file(data)
+    if data_nf is not None:
+        y_points_nf = parse_file(data_nf)
+    else:
+        y_points_nf = []
+
+    print("Plotting points...")
+
+    input1 = T1_Gaussian(0,1)
+    input2 = T1_Gaussian(0,1)
+    inputs = []
+    fis = FIS(True)
+
+    plot_quantity = math.ceil((len(y_points[0])*1.0)/step)
+
+    print "0%"
+    for index, set in enumerate(y_points[0]):
+        if index % step == 0:
+            input1 = T1_Gaussian(y_points[0][index], y_points[1][index])
+
+            input2 = T1_Gaussian(y_points[2][index], y_points[3][index])
+            inputs = [input1, input2]
+
+            inputs_nf = None
+
+            if len(y_points_nf) > 0:
+                input1_nf = T1_Gaussian(y_points_nf[0][index], y_points_nf[1][index])
+                inputs_nf = [input1_nf]
+
+            # inputs = [input1]
+            filename = "inference_" + str(index)
+
+            fis.plots.plot_inference(fis.Rule_set, fis.inverse_rules, inputs, inputs_nf, filename)
+            print str ((((index / step) + 1) * 100) / plot_quantity) + "%"
+
+def parse_file(data):
     print("Reading and Parsing Data...")
 
-
-
     line = data.readline()
-
     # List to hold x floats
     x_points = []
     # List of lists to hold all y floats (1 x point can have multiple y points associated with it)
@@ -53,28 +100,9 @@ def main():
         # read next line
         line = data.readline()
 
-
     print("Closing File...")
     data.close()
-    print("Plotting points...")
-
-    input1 = T1_Gaussian(0,1)
-    input2 = T1_Gaussian(0,1)
-    inputs = []
-    fis = FIS(True)
-
-    plot_quantity = math.ceil((len(y_points[0])*1.0)/step)
-
-    print "0%"
-    for index, set in enumerate(y_points[0]):
-        if index % step == 0:
-            input1 = T1_Gaussian(y_points[0][index], y_points[1][index])
-            input2 = T1_Gaussian(y_points[2][index], y_points[3][index])
-            inputs = [input1, input2]
-            filename = "inference_" + str(index)
-
-            fis.plots.plot_inference(fis.Rule_set, fis.inverse_rules, inputs, filename)
-            print str ((((index / step) + 1) * 100) / plot_quantity) + "%"
+    return y_points
 
 if __name__ == "__main__":
     main()

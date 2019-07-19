@@ -52,7 +52,7 @@ class draw_fis(object):
 
         plt.savefig("FIS.png")
 
-    def plot_inference(self, rulesets, is_inverse, inputs, filename):
+    def plot_inference(self, rulesets, is_inverse, inputs, inputs_nf, filename):
 
         if is_inverse:
             ruleset = rulesets[1]
@@ -60,29 +60,42 @@ class draw_fis(object):
             ruleset = rulesets[0]
 
         if not self.initial_draw:
-            self.fig, self.plots = plt.subplots(15, 3)
+            self.fig, self.plots = plt.subplots(len(ruleset), len (ruleset[0][0]) + 1)
 
         for index, rule in enumerate(ruleset):
 
             if not self.initial_draw:
                 ante1_x, ante1_y, ante1_x_min, ante1_x_max = self.get_membership(rule[0][0])
-                ante2_x, ante2_y, ante2_x_min, ante2_x_max = self.get_membership(rule[0][1])
+                #
                 consq1_x, consq1_y, consq1_x_min, consq1_x_max = self.get_membership(rule[1])
                 self.plots[index][0].plot(ante1_x, ante1_y)
-                self.plots[index][0].axis([3000, 10500, 0, 1.05])
-                self.plots[index][1].plot(ante2_x, ante2_y)
-                self.plots[index][1].axis([-500, 500, 0, 1.05])
-                self.plots[index][2].plot(consq1_x, consq1_y)
-                self.plots[index][2].axis([-1, 1, 0, 1.05])
+                self.plots[index][0].axis([3000, 16000, 0, 1.05])
+                #
+                self.plots[index][len(ruleset[0][0])].plot(consq1_x, consq1_y)
+                self.plots[index][len(ruleset[0][0])].axis([-1, 1, 0, 1.05])
+
+                if len (ruleset[0][0]) == 2:
+                    ante2_x, ante2_y, ante2_x_min, ante2_x_max = self.get_membership(rule[0][1])
+                    self.plots[index][1].plot(ante2_x, ante2_y)
+                    self.plots[index][1].axis([-500, 500, 0, 1.05])
+
 
             input1_x, input1_y, in1_min, in1_max = self.get_membership(inputs[0])
-            input2_x, input2_y, in2_min, in2_max = self.get_membership(inputs[1])
-
             input1_plot, = self.plots[index][0].plot(input1_x, input1_y)
-            input2_plot, = self.plots[index][1].plot(input2_x, input2_y)
-
             self.input1_plots.append(input1_plot)
-            self.input2_plots.append(input2_plot)
+
+            if inputs_nf is not None:
+                input1_nf_x, input1_nf_y, in1_nf_min, in1_nf_max = self.get_membership(inputs_nf[0])
+                input1_plot_nf, = self.plots[index][0].plot(input1_nf_x, input1_nf_y)
+                self.input1_plots.append(input1_plot_nf)
+
+            if len(ruleset[0][0]) == 2:
+                input2_x, input2_y, in2_min, in2_max = self.get_membership(inputs[1])
+                input2_plot, = self.plots[index][1].plot(input2_x, input2_y)
+                self.input2_plots.append(input2_plot)
+
+
+
 
         #plt.tight_layout()
         plt.setp(self.plots, yticks=[0, 1])

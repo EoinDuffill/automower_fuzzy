@@ -70,7 +70,7 @@ def rule_output(my_input, rule, operator):
         else:
             FSs_interation = inter_union(rule[index], my_input[index], 100)
             #TO DO tr different parameters (i.e cen_NS, sim_NS and sub_NS) 
-            fs.append(FSs_interation.return_firing_stregth("standard"))
+            fs.append(FSs_interation.return_firing_stregth("sim_NS"))
 
     if operator == "min":
         return min(fs)
@@ -94,11 +94,14 @@ class BoundarySensor(object):
     def __init__(self, x, y):
         self.x = x
         self.y = y
+        self.readings_noise_free = []
         self.readings = []
         self.prev_value = None
         self.value = 0
+        self.value_noise_free = 0
         self.sd = 0
         self.noise_estimate = 0
+        self.prev_noise_estimate = 0
 
     def calc_distri(self):
         if len(self.readings) > 0:
@@ -109,6 +112,12 @@ class BoundarySensor(object):
             self.prev_value = self.value
             self.value = (sum * 1.0)/len(self.readings)
 
+            # Mean
+            sum = 0
+            for reading in self.readings_noise_free:
+                sum += reading
+            self.value_noise_free = (sum * 1.0)/len(self.readings_noise_free)
+
             # s.d.
             sum = 0
             for reading in self.readings:
@@ -116,6 +125,7 @@ class BoundarySensor(object):
             self.sd = np.sqrt((sum * 1.0)/len(self.readings))
 
             # noise
+            self.prev_noise_estimate = self.noise_estimate
             self.noise_estimate = noise_estimation(self.readings)
 
             self.readings = []
@@ -141,9 +151,11 @@ class FIS(object):
         self.x = []
         self.counter = 0
         self.mean_list = []
-        self.file = open("mean_error_results.txt", "w")
+
         if not observe:
+            self.file = open("mean_error_results.txt", "w")
             self.file_inputs = open("fuzzy_inputs.txt", "w")
+            self.file_inputs_noise_free = open("fuzzy_inputs_nf.txt", "w")
 
         # Control parameters
         self.cp_target = 7500
@@ -212,7 +224,20 @@ class FIS(object):
                          rule_14,
                          rule_15]
 
+        rule_1_s = [[very_close],right_sharp_pair,"If Very Close then Right Sharp"]
+        rule_2_s = [[close], right_pair,"If Close then Right"]
+        rule_3_s = [[medium], straight_pair, "If Medium then Straight"]
+        rule_4_s = [[far], left_pair, "If Far then Left"]
+        rule_5_s = [[very_far], left_shallow_pair, "If Very Far then Left Shallow"]
+
+        rule_set_single = [rule_1_s,
+                           rule_2_s,
+                           rule_3_s,
+                           rule_4_s,
+                           rule_5_s]
+
         self.Rule_set = self.split_ruleset(rule_set_base)
+        # self.Rule_set = self.split_ruleset(rule_set_single)
         self.inverse_rules = False
 
         # input with mean and sigma
@@ -223,7 +248,7 @@ class FIS(object):
             [very_close, close, medium, far, very_far],
             [negative, none, positive]],
             [right_sharp_pair, right_pair, straight_pair, left_pair, left_shallow_pair])
-        #self.plots.plot()
+        # self.plots.plot()
 
 
 
@@ -248,17 +273,20 @@ class FIS(object):
 
         if self.avg_loop() != -1:
             self.input_obj1 = T1_Gaussian(self.front_center.value, self.front_center.noise_estimate)
+            self.input_obj1_nf = T1_Gaussian(self.front_center.value_noise_free, 0)
             if self.front_center.prev_value is not None:
                 self.input_obj2 = T1_Gaussian(self.front_center.value - self.front_center.prev_value, 0)
             else:
                 self.input_obj2 = T1_Gaussian(0,0)
 
-            # create alist of inputs
+            # multi input
             inputs = [self.input_obj1, self.input_obj2]  # !!
+            # single input
+            # inputs = [self.input_obj1]
 
             # self.evalFIS(self.input_obj1)
             # send all the inputs as params#!!
-            self.evalFIS(inputs)  # !!
+            self.evalFIS(inputs, [self.input_obj1_nf])  # !!
 
             if self.inverse_rules:
                 rules = self.Rule_set[1]
@@ -284,7 +312,7 @@ class FIS(object):
 
         return
 
-    def evalFIS(self, inputs):
+    def evalFIS(self, inputs, inputs_nf):
         print "--- Multi Inputs ----"  # !!
         for input in inputs:  # !!
             print "Mean = " + str(input.mean) + ", S.D. = " + str(input.step)  # !!
@@ -293,9 +321,25 @@ class FIS(object):
 
         self.counter += 1
 
-        self.file_inputs.write( str(self.counter) + ", " + str(inputs[0].mean) + "\t"+ str(inputs[0].step) + "\t" + str(inputs[1].mean) + "\t" + str(inputs[1].step) + "\n")
 
+        file_str = str(self.counter) + ", "
+        for input in inputs:
+            file_str += str(input.mean) + "\t"+ str(input.step) + "\t"
+        file_str = file_str[:-1]
+        file_str += "\n"
+
+
+        #self.file_inputs.write( str(self.counter) + ", " + str(inputs[0].mean) + "\t"+ str(inputs[0].step) + "\t" + str(inputs[1].mean) + "\t" + str(inputs[1].step) + "\n")
+        self.file_inputs.write(file_str)
         self.file.write(str(self.counter) + ", " + str(abs(inputs[0].mean - self.cp_target))+"\n")
+
+        #Write noise free data
+        file_str = str(self.counter) + ", "
+        for input in inputs_nf:
+            file_str += str(input.mean) + "\t" + str(input.step) + "\t"
+        file_str = file_str[:-1]
+        file_str += "\n"
+        self.file_inputs_noise_free.write(file_str)
 
         if self.inverse_rules:
             rules = self.Rule_set[1]
@@ -310,11 +354,20 @@ class FIS(object):
     # Accumulate loop sensor observations
     def parse_loop(self, data):
 
+        # Noise injection
+        delta = data.frontCenter * 0.1
+        noise = np.random.uniform(-delta,delta,1)[0]
+
         self.observation_count += 1
-        self.front_center.readings.append(data.frontCenter)
-        self.front_right.readings.append(data.frontRight)
-        self.rear_left.readings.append(data.rearLeft)
-        self.rear_right.readings.append(data.rearRight)
+        self.front_center.readings.append(data.frontCenter + noise)
+        self.front_right.readings.append(data.frontRight+ noise)
+        self.rear_left.readings.append(data.rearLeft+ noise)
+        self.rear_right.readings.append(data.rearRight+ noise)
+
+        self.front_center.readings_noise_free.append(data.frontCenter)
+        self.front_right.readings_noise_free.append(data.frontRight)
+        self.rear_left.readings_noise_free.append(data.rearLeft)
+        self.rear_right.readings_noise_free.append(data.rearRight)
 
     # Calculate avg since last avg calc
     def avg_loop(self):
