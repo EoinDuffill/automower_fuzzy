@@ -173,13 +173,13 @@ class FIS(object):
                            rule_4_s,
                            rule_5_s]
 
-        self.Rule_set = self.split_ruleset(rule_set_base)
-        # self.Rule_set = self.split_ruleset(rule_set_single)
+        #self.Rule_set = self.split_ruleset(rule_set_base)
+        self.Rule_set = self.split_ruleset(rule_set_single)
         self.inverse_rules = False
 
         # input with mean and sigma
         self.input_obj1 = T1_Gaussian(0, 1)
-        self.input_obj2 = T1_Gaussian(0, 1)
+        #self.input_obj2 = T1_Gaussian(0, 1)
 
         self.plots = draw_fis([
             [very_close, close, medium, far, very_far],
@@ -207,33 +207,33 @@ class FIS(object):
         # Get sensor value avg's since last update
         #
         self.input_obj1 = T1_Gaussian(inpt1, estimated_noise1)
-        if(inpt2):
-            self.input_obj2 = T1_Gaussian(inpt2, estimated_noise2)
+        #if(inpt2):
+            #self.input_obj2 = T1_Gaussian(inpt2, estimated_noise2)
 
 
-            # multi input
-            inputs = [self.input_obj1, self.input_obj2]  # !!
-            # single input
-            # inputs = [self.input_obj1]
+        # multi input
+        #inputs = [self.input_obj1, self.input_obj2]  # !!
+        # single input
+        inputs = [self.input_obj1]
 
-            # self.evalFIS(self.input_obj1)
-            # send all the inputs as params#!!
-            self.evalFIS(inputs)  # !!
+        # self.evalFIS(self.input_obj1)
+        # send all the inputs as params#!!
+        self.evalFIS(inputs)  # !!
 
-            if self.inverse_rules:
-                rules = self.Rule_set[1]
-            else:
-                rules = self.Rule_set[0]
+        if self.inverse_rules:
+            rules = self.Rule_set[1]
+        else:
+            rules = self.Rule_set[0]
 
-            output = centroid(aggregate(rules, "max"))
+        output = centroid(aggregate(rules, "max"))
 
-            print output
+        print output
 
-            # Apply Output
-            # min speed
-            min = 0.25
-            max = 0.75
-            diff = max - min
+        # Apply Output
+        # min speed
+        min = 0.25
+        max = 0.75
+        diff = max - min
 
 
 
@@ -269,7 +269,7 @@ class FIS(object):
 
 if __name__ == '__main__':
     automower_fuzzy = FIS(False)
-    model_inputs=pd.read_csv("/home/psxdp/Desktop/Husqvarna/automower_fuzzy/src/experiments/completed_experiments/sim_noise_free_comparison/fuzzy_inputs.csv", header=None)
+    model_inputs=pd.read_csv("/home/psxdp/Desktop/Husqvarna/automower_fuzzy/src/experiments/completed_experiments/sim_noise_free_comparison/fuzzy_inputs_nf.csv", header=None)
     
     for index,row in model_inputs.iterrows():
-        automower_fuzzy.update(row[1],0,row[3],0)
+        automower_fuzzy.update(row[1],0,0,0)
